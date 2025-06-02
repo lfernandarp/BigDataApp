@@ -19,7 +19,7 @@ mongo_uri = os.environ.get("MONGO_URI")
 
 if not mongo_uri:
     # Usar la URI directamente (menos seguro, solo para desarrollo local)
-    uri = "mongodb+srv://LFRODRIGUEZP:<db_password>@cluster0.s7x68mb.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+    uri = "mongodb+srv://LFRODRIGUEZP:NuevaClave123@cluster0.gngwz8p.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
     mongo_uri = uri
 
 # Función para conectar a MongoDB
