@@ -661,7 +661,7 @@ def search():
 
         # Ejecutar la búsqueda en Elasticsearch
         response = client.search(
-            index=index_name,
+            index=INDEX_NAME,
             body=query
         )
 
