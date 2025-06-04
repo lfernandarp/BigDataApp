@@ -1,23 +1,55 @@
-
 body {
-    background: linear-gradient(to right, #f9cbac, #f7f7f1);
+    font-family: 'Century Gothic', sans-serif;
+    background: linear-gradient(to right, #4c3b75, #eae6f1); /* violeta sobrio a claro */
+    color: #2d2d2d;
     min-height: 100vh;
     margin: 0;
     padding: 0;
 }
+
 .header {
-    background-color: rgba(138, 193, 242, 0.9);
-    padding: 1rem 0;
+    background-color: rgba(76, 59, 117, 0.95); /* violeta oscuro */
+    padding: 3rem 0 2rem 0;
+    text-align: center;
+    color: #f3e5ab; /* dorado claro */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
+
+.header h1 {
+    margin: 0;
+    font-size: 2.5rem;
+    letter-spacing: 2px;
+}
+
+.header h2 {
+    margin-top: 1rem;
+    font-size: 1.5rem;
+    font-weight: normal;
+    color: #fffbe6;
+}
+
+.header p {
+    margin-top: 0.5rem;
+    font-size: 1rem;
+    color: #e0d8aa;
+}
+
 .container {
-    background-color: rgba(130, 180, 201, 0.9);
+    background-color: rgba(255, 255, 255, 0.95);
     padding: 2rem;
-    border-radius: 10px;
-    margin-top: 2rem;
+    border-radius: 12px;
+    margin: 2rem auto;
+    width: 80%;
+    max-width: 900px;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+    text-align: center;
 }
+
 footer {
-    background-color: rgba(80, 129, 242, 0.9);
+    background-color: rgba(40, 30, 60, 0.95);
     padding: 1rem 0;
-    margin-top: 2rem;
-    color: #666;
+    margin-top: 3rem;
+    text-align: center;
+    color: #d4c486; /* dorado más oscuro */
+    font-size: 0.9rem;
 }
