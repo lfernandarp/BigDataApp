@@ -1,384 +1,735 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from pymongo.mongo_client import MongoClient
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
+from pymongo.server_api import ServerApi
+import zipfile
 import zipfile
 import os
+import os
+from datetime import datetime
 from datetime import datetime
 import json
+import json
+import re
 import re
 from elasticsearch import Elasticsearch
-
+app = Flask(__name__)
 app = Flask(__name__)
 app.secret_key = 'tu_clave_secreta_aqui'  # Cambia esto por una clave secreta segura
-
+app.secret_key = 'tu_clave_secreta_aqui'  # Cambia esto por una clave secreta segura
+# Versión de la aplicación
 # Versión de la aplicación
 VERSION_APP = "Versión 1.3 del Mayo 15 del 2025"
+VERSION_APP = "Versión 1.3 del Mayo 15 del 2025"
+#
 #
 CREATOR_APP = "Nombre del creador/ruta github"
-
+CREATOR_APP = "Nombre del creador/ruta github"
 mongo_uri = os.environ.get("MONGO_URI")
-
+mongo_uri = os.environ.get("MONGO_URI")
+if not mongo_uri:
 if not mongo_uri:
     # Usar la URI directamente (menos seguro, solo para desarrollo local)
+    # Usar la URI directamente (menos seguro, solo para desarrollo local)
     uri = "mongodb+srv://LFRODRIGUEZP:NuevaClave123@cluster0.gngwz8p.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-
+    uri = "mongodb+srv://DbCentral:DbCentral2025@cluster0.vhltza7.mongodb.net/?appName=Cluster0"
     mongo_uri = uri
-
+    mongo_uri = uri
+# Función para conectar a MongoDB
 # Función para conectar a MongoDB
 def connect_mongo():
+def connect_mongo():
+    try:
     try:
         client = MongoClient(mongo_uri, server_api=ServerApi('1'))
+        client = MongoClient(mongo_uri, server_api=ServerApi('1'))
+        client.admin.command('ping')
         client.admin.command('ping')
         print("Conexión exitosa a MongoDB!")
+        print("Conexión exitosa a MongoDB!")
+        return client
         return client
     except Exception as e:
+    except Exception as e:
+        print(f"Error al conectar a MongoDB: {e}")
         print(f"Error al conectar a MongoDB: {e}")
         return None
-
+        return None
 # Configuración de Elasticsearch
 client = Elasticsearch(
     "https://my-elasticsearch-project-d7d237.es.us-east-1.aws.elastic.cloud:443",
     api_key="QzZnUE9aY0Jod0NLS21GMGozeUo6bUNqbUUyV2c1Y3IwbXBtcmJtMElvUQ=="
 )
 INDEX_NAME = "lfrpucentral"
-
+@app.route('/')
 @app.route('/')
 def index():
+def index():
+    return render_template('index.html', version=VERSION_APP,creador=CREATOR_APP)
     return render_template('index.html', version=VERSION_APP,creador=CREATOR_APP)
 @app.route('/about')
+@app.route('/about')
+def about():
 def about():
     return render_template('about.html', version=VERSION_APP,creador=CREATOR_APP)
-
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
+    return render_template('about.html', version=VERSION_APP,creador=CREATOR_APP)
+@app.route('/contacto', methods=['GET', 'POST'])
+def contacto():
     if request.method == 'POST':
-        # Primero verificar la conectividad con MongoDB
-        client = connect_mongo()
-        if not client:
-            return render_template('login.html', error_message='Error de conexión con la base de datos. Por favor, intente más tarde.', version=VERSION_APP,creador=CREATOR_APP)
+        # Aquí va la lógica para procesar el formulario de contacto
+        return redirect(url_for('contacto'))
+    return render_template('contacto.html', version=VERSION_APP,creador=CREATOR_APP)
+@app.route('/buscador', methods=['GET', 'POST'])
+def buscador():
+    if request.method == 'POST':
+        # Aquí irá la lógica de búsqueda
+        search_type = request.form.get('search_type')
+        fecha_desde = request.form.get('fecha_desde')
+        fecha_hasta = request.form.get('fecha_hasta')
+        search_text = request.form.get('search_text')
         
-        try:
-            db = client['administracion']
-            security_collection = db['seguridad']
-            usuario = request.form['usuario']
-            password = request.form['password']
-            
-            # Verificar credenciales en MongoDB
-            user = security_collection.find_one({
-                'usuario': usuario,
-                'password': password
-            })
-            
-            if user:
-                session['usuario'] = usuario
-                return redirect(url_for('gestion_proyecto'))
-            else:
-                return render_template('login.html', error_message='Usuario o contraseña incorrectos', version=VERSION_APP,creador=CREATOR_APP)
-        except Exception as e:
-            return render_template('login.html', error_message=f'Error al validar credenciales: {str(e)}', version=VERSION_APP,creador=CREATOR_APP)
-        finally:
-            client.close()
-    
-    return render_template('login.html', version=VERSION_APP,creador=CREATOR_APP)
-
-@app.route('/gestion_proyecto', methods=['GET', 'POST'])
-def gestion_proyecto():
-    if 'usuario' not in session:
-        return redirect(url_for('login'))
-    
-    try:
-        client = connect_mongo()
-        # Obtener lista de bases de datos
-        databases = client.list_database_names()
-        # Eliminar bases de datos del sistema
-        system_dbs = ['admin', 'local', 'config']
-        databases = [db for db in databases if db not in system_dbs]
-        
-        selected_db = request.form.get('database') if request.method == 'POST' else request.args.get('database')
-        collections_data = []
-        
-        if selected_db:
-            db = client[selected_db]
-            collections = db.list_collection_names()
-            for index, collection_name in enumerate(collections, 1):
-                collection = db[collection_name]
-                count = collection.count_documents({})
-                collections_data.append({
-                    'index': index,
-                    'name': collection_name,
-                    'count': count
-                })
-        
-        return render_template('gestion/index.html',
-                            databases=databases,
-                            selected_db=selected_db,
-                            collections_data=collections_data,
-                            version=VERSION_APP,
-                            creador=CREATOR_APP,
-                            usuario=session['usuario'])
-    except Exception as e:
-        return render_template('gestion/index.html',
-                            error_message=f'Error al conectar con MongoDB: {str(e)}',
-                            version=VERSION_APP,
-                            creador=CREATOR_APP,
-                            usuario=session['usuario'])
-
-@app.route('/listar-usuarios')
-def listar_usuarios():
-    try:
-        client = connect_mongo()
-        if not client:
-            return jsonify({'error': 'Error de conexión con la base de datos'}), 500
-        
-        db = client['administracion']
-        security_collection = db['seguridad']
-        
-        # Obtener todos los usuarios, excluyendo la contraseña por seguridad
-        #usuarios = list(security_collection.find({}, {'password': 0}))
-
-        usuarios = list(security_collection.find())
-        
-        # Convertir ObjectId a string para serialización JSON
-        for usuario in usuarios:
-            usuario['_id'] = str(usuario['_id'])
-        
-        return jsonify(usuarios)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if 'client' in locals():
-            client.close()
-
-@app.route('/crear-coleccion-form/<database>')
-def crear_coleccion_form(database):
-    if 'usuario' not in session:
-        return redirect(url_for('login'))
-    return render_template('gestion/crear_coleccion.html', 
-                         database=database,
-                         usuario=session['usuario'],
-                         version=VERSION_APP,
-                         creador=CREATOR_APP)
-
-@app.route('/crear-coleccion', methods=['POST'])
-def crear_coleccion():
-    if 'usuario' not in session:
-        return redirect(url_for('login'))
-    
-    try:
-        database = request.form.get('database')
-        collection_name = request.form.get('collection_name')
-        zip_file = request.files.get('zip_file')
-        
-        if not all([database, collection_name, zip_file]):
-            return render_template('gestion/crear_coleccion.html',
-                                error_message='Todos los campos son requeridos',
-                                database=database,
-                                usuario=session['usuario'],
-                                version=VERSION_APP,
-                                creador=CREATOR_APP)
-        
-        # Conectar a MongoDB
-        client = connect_mongo()
-        if not client:
-            return render_template('gestion/crear_coleccion.html',
-                                error_message='Error de conexión con MongoDB',
-                                database=database,
-                                usuario=session['usuario'],
-                                version=VERSION_APP,
-                                creador=CREATOR_APP)
-        
-        # Crear la colección
-        db = client[database]
-        collection = db[collection_name]
-        
-        # Procesar el archivo ZIP
-        with zipfile.ZipFile(zip_file) as zip_ref:
-            # Crear un directorio temporal para extraer los archivos
-            temp_dir = os.path.join(os.path.dirname(__file__), 'temp')
-            os.makedirs(temp_dir, exist_ok=True)
-            
-            # Extraer los archivos
-            zip_ref.extractall(temp_dir)
-            
-            # Procesar cada archivo JSON
-            for root, _, files in os.walk(temp_dir):
-                for file in files:
-                    if file.endswith('.json'):
-                        file_path = os.path.join(root, file)
-                        with open(file_path, 'r', encoding='utf-8') as f:
-                            try:
-                                json_data = json.load(f)
-                                # Si el JSON es una lista, insertar cada elemento
-                                if isinstance(json_data, list):
-                                    collection.insert_many(json_data)
-                                else:
-                                    collection.insert_one(json_data)
-                            except json.JSONDecodeError:
-                                print(f"Error al procesar el archivo {file}")
-                            except Exception as e:
-                                print(f"Error al insertar datos del archivo {file}: {str(e)}")
-            
-            # Limpiar el directorio temporal
-            for root, dirs, files in os.walk(temp_dir, topdown=False):
-                for file in files:
-                    os.remove(os.path.join(root, file))
-                for dir in dirs:
-                    os.rmdir(os.path.join(root, dir))
-            os.rmdir(temp_dir)
-        
-        return redirect(url_for('gestion_proyecto', database=database))
-        
-    except Exception as e:
-        return render_template('gestion/crear_coleccion.html',
-                            error_message=f'Error al crear la colección: {str(e)}',
-                            database=database,
-                            usuario=session['usuario'],
+        # TODO: Implementar la lógica de búsqueda
+        return render_template('buscador.html',
                             version=VERSION_APP,
                             creador=CREATOR_APP)
-    finally:
-        if 'client' in locals():
-            client.close()
-
-@app.route('/ver-registros/<database>/<collection>')
-def ver_registros(database, collection):
-    if 'usuario' not in session:
-        return redirect(url_for('login'))
     
-    try:
+    return render_template('buscador.html',
+                         version=VERSION_APP,
+                         creador=CREATOR_APP)
+@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+def login():
+    if request.method == 'POST':
+    if request.method == 'POST':
+        # Primero verificar la conectividad con MongoDB
+        # Primero verificar la conectividad con MongoDB
+        client = connect_mongo()
         client = connect_mongo()
         if not client:
-            return render_template('gestion/index.html',
-                                error_message='Error de conexión con MongoDB',
-                                version=VERSION_APP,
-                                creador=CREATOR_APP,
-                                usuario=session['usuario'])
+        if not client:
+            return render_template('login.html', error_message='Error de conexión con la base de datos. Por favor, intente más tarde.', version=VERSION_APP,creador=CREATOR_APP)
+            return render_template('login.html', error_message='Error de conexión con la base de datos. Por favor, intente más tarde.', version=VERSION_APP,creador=CREATOR_APP)
         
-        db = client[database]
-        collection_obj = db[collection]
         
-        # Obtener los primeros 100 registros por defecto
-        records = list(collection_obj.find().limit(100))
+        try:
+        try:
+            db = client['administracion']
+            db = client['administracion']
+            security_collection = db['seguridad']
+            security_collection = db['seguridad']
+            usuario = request.form['usuario']
+            usuario = request.form['usuario']
+            password = request.form['password']
+            password = request.form['password']
+            
+            
+            # Verificar credenciales en MongoDB
+            # Verificar credenciales en MongoDB
+            user = security_collection.find_one({
+            user = security_collection.find_one({
+                'usuario': usuario,
+                'usuario': usuario,
+                'password': password
+                'password': password
+            })
+            })
+            
+            
+            if user:
+            if user:
+                session['usuario'] = usuario
+                session['usuario'] = usuario
+                return redirect(url_for('gestion_proyecto'))
+                return redirect(url_for('gestion_proyecto'))
+            else:
+            else:
+                return render_template('login.html', error_message='Usuario o contraseña incorrectos', version=VERSION_APP,creador=CREATOR_APP)
+                return render_template('login.html', error_message='Usuario o contraseña incorrectos', version=VERSION_APP,creador=CREATOR_APP)
+        except Exception as e:
+        except Exception as e:
+            return render_template('login.html', error_message=f'Error al validar credenciales: {str(e)}', version=VERSION_APP,creador=CREATOR_APP)
+            return render_template('login.html', error_message=f'Error al validar credenciales: {str(e)}', version=VERSION_APP,creador=CREATOR_APP)
+        finally:
+        finally:
+            client.close()
+            client.close()
+    
+    
+    return render_template('login.html', version=VERSION_APP,creador=CREATOR_APP)
+    return render_template('login.html', version=VERSION_APP,creador=CREATOR_APP)
+@app.route('/gestion_proyecto', methods=['GET', 'POST'])
+@app.route('/gestion_proyecto', methods=['GET', 'POST'])
+def gestion_proyecto():
+def gestion_proyecto():
+    if 'usuario' not in session:
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+        return redirect(url_for('login'))
+    
+    
+    try:
+    try:
+        client = connect_mongo()
+        client = connect_mongo()
+        # Obtener lista de bases de datos
+        # Obtener lista de bases de datos
+        databases = client.list_database_names()
+        databases = client.list_database_names()
+        # Eliminar bases de datos del sistema
+        # Eliminar bases de datos del sistema
+        system_dbs = ['admin', 'local', 'config']
+        system_dbs = ['admin', 'local', 'config']
+        databases = [db for db in databases if db not in system_dbs]
+        databases = [db for db in databases if db not in system_dbs]
         
-        # Convertir ObjectId a string para serialización JSON
-        for record in records:
-            record['_id'] = str(record['_id'])
         
-        return render_template('gestion/ver_registros.html',
-                            database=database,
-                            collection_name=collection,
-                            records=records,
+        selected_db = request.form.get('database') if request.method == 'POST' else request.args.get('database')
+        selected_db = request.form.get('database') if request.method == 'POST' else request.args.get('database')
+        collections_data = []
+        collections_data = []
+        
+        
+        if selected_db:
+        if selected_db:
+            db = client[selected_db]
+            db = client[selected_db]
+            collections = db.list_collection_names()
+            collections = db.list_collection_names()
+            for index, collection_name in enumerate(collections, 1):
+            for index, collection_name in enumerate(collections, 1):
+                collection = db[collection_name]
+                collection = db[collection_name]
+                count = collection.count_documents({})
+                count = collection.count_documents({})
+                collections_data.append({
+                collections_data.append({
+                    'index': index,
+                    'index': index,
+                    'name': collection_name,
+                    'name': collection_name,
+                    'count': count
+                    'count': count
+                })
+                })
+        
+        
+        return render_template('gestion/index.html',
+        return render_template('gestion/index.html',
+                            databases=databases,
+                            databases=databases,
+                            selected_db=selected_db,
+                            selected_db=selected_db,
+                            collections_data=collections_data,
+                            collections_data=collections_data,
+                            version=VERSION_APP,
                             version=VERSION_APP,
                             creador=CREATOR_APP,
+                            creador=CREATOR_APP,
                             usuario=session['usuario'])
+                            usuario=session['usuario'])
+    except Exception as e:
     except Exception as e:
         return render_template('gestion/index.html',
-                            error_message=f'Error al obtener registros: {str(e)}',
+        return render_template('gestion/index.html',
+                            error_message=f'Error al conectar con MongoDB: {str(e)}',
+                            error_message=f'Error al conectar con MongoDB: {str(e)}',
+                            version=VERSION_APP,
                             version=VERSION_APP,
                             creador=CREATOR_APP,
+                            creador=CREATOR_APP,
                             usuario=session['usuario'])
-    finally:
-        if 'client' in locals():
-            client.close()
-
-@app.route('/obtener-registros', methods=['POST'])
-def obtener_registros():
-    if 'usuario' not in session:
-        return jsonify({'error': 'No autorizado'}), 401
-    
+                            usuario=session['usuario'])
+@app.route('/listar-usuarios')
+@app.route('/listar-usuarios')
+def listar_usuarios():
+def listar_usuarios():
     try:
-        database = request.form.get('database')
-        collection = request.form.get('collection')
-        limit = int(request.form.get('limit', 100))
-        
+    try:
+        client = connect_mongo()
         client = connect_mongo()
         if not client:
-            return jsonify({'error': 'Error de conexión con MongoDB'}), 500
+        if not client:
+            return jsonify({'error': 'Error de conexión con la base de datos'}), 500
+            return jsonify({'error': 'Error de conexión con la base de datos'}), 500
         
-        db = client[database]
-        collection_obj = db[collection]
         
-        # Obtener los registros con el límite especificado
-        records = list(collection_obj.find().limit(limit))
+        db = client['administracion']
+        db = client['administracion']
+        security_collection = db['seguridad']
+        security_collection = db['seguridad']
+        
+        
+        # Obtener todos los usuarios, excluyendo la contraseña por seguridad
+        # Obtener todos los usuarios, excluyendo la contraseña por seguridad
+        #usuarios = list(security_collection.find({}, {'password': 0}))
+        #usuarios = list(security_collection.find({}, {'password': 0}))
+        usuarios = list(security_collection.find())
+        usuarios = list(security_collection.find())
+        
         
         # Convertir ObjectId a string para serialización JSON
-        for record in records:
-            record['_id'] = str(record['_id'])
+        # Convertir ObjectId a string para serialización JSON
+        for usuario in usuarios:
+        for usuario in usuarios:
+            usuario['_id'] = str(usuario['_id'])
+            usuario['_id'] = str(usuario['_id'])
         
-        return jsonify({'records': records})
+        
+        return jsonify(usuarios)
+        return jsonify(usuarios)
+    except Exception as e:
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+        return jsonify({'error': str(e)}), 500
+    finally:
     finally:
         if 'client' in locals():
+        if 'client' in locals():
             client.close()
-
-@app.route('/crear-base-datos-form')
-def crear_base_datos_form():
+            client.close()
+@app.route('/crear-coleccion-form/<database>')
+@app.route('/crear-coleccion-form/<database>')
+def crear_coleccion_form(database):
+def crear_coleccion_form(database):
+    if 'usuario' not in session:
     if 'usuario' not in session:
         return redirect(url_for('login'))
-    return render_template('gestion/crear_base_datos.html',
+        return redirect(url_for('login'))
+    return render_template('gestion/crear_coleccion.html',
+    return render_template('gestion/crear_coleccion.html',
+                         database=database,
+                         database=database,
+                         usuario=session['usuario'],
+                         usuario=session['usuario'],
                          version=VERSION_APP,
-                         creador=CREATOR_APP,
-                         usuario=session['usuario'])
-
-@app.route('/crear-base-datos', methods=['POST'])
-def crear_base_datos():
+                         version=VERSION_APP,
+                         creador=CREATOR_APP)
+                         creador=CREATOR_APP)
+@app.route('/crear-coleccion', methods=['POST'])
+@app.route('/crear-coleccion', methods=['POST'])
+def crear_coleccion():
+def crear_coleccion():
     if 'usuario' not in session:
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
         return redirect(url_for('login'))
     
+    
     try:
-        database_name = request.form.get('database_name')
+    try:
+        database = request.form.get('database')
+        database = request.form.get('database')
         collection_name = request.form.get('collection_name')
+        collection_name = request.form.get('collection_name')
+        zip_file = request.files.get('zip_file')
+        zip_file = request.files.get('zip_file')
         
-        # Validar que los nombres no contengan caracteres especiales
-        valid_pattern = re.compile(r'^[a-zA-Z0-9_]+$')
-        if not valid_pattern.match(database_name) or not valid_pattern.match(collection_name):
-            return render_template('gestion/crear_base_datos.html',
-                                error_message='Los nombres no pueden contener tildes, espacios ni caracteres especiales',
+        
+        if not all([database, collection_name, zip_file]):
+        if not all([database, collection_name, zip_file]):
+            return render_template('gestion/crear_coleccion.html',
+            return render_template('gestion/crear_coleccion.html',
+                                error_message='Todos los campos son requeridos',
+                                error_message='Todos los campos son requeridos',
+                                database=database,
+                                database=database,
+                                usuario=session['usuario'],
+                                usuario=session['usuario'],
                                 version=VERSION_APP,
-                                creador=CREATOR_APP,
-                                usuario=session['usuario'])
+                                version=VERSION_APP,
+                                creador=CREATOR_APP)
+                                creador=CREATOR_APP)
+        
         
         # Conectar a MongoDB
+        # Conectar a MongoDB
+        client = connect_mongo()
         client = connect_mongo()
         if not client:
-            return render_template('gestion/crear_base_datos.html',
+        if not client:
+            return render_template('gestion/crear_coleccion.html',
+            return render_template('gestion/crear_coleccion.html',
                                 error_message='Error de conexión con MongoDB',
+                                error_message='Error de conexión con MongoDB',
+                                database=database,
+                                database=database,
+                                usuario=session['usuario'],
+                                usuario=session['usuario'],
                                 version=VERSION_APP,
-                                creador=CREATOR_APP,
-                                usuario=session['usuario'])
+                                version=VERSION_APP,
+                                creador=CREATOR_APP)
+                                creador=CREATOR_APP)
         
-        # Crear la base de datos y la colección
-        db = client[database_name]
+        
+        # Crear la colección
+        # Crear la colección
+        db = client[database]
+        db = client[database]
+        collection = db[collection_name]
         collection = db[collection_name]
         
-        # Insertar un documento vacío para crear la colección
-        collection.insert_one({})
         
-        # Eliminar el documento vacío
-        collection.delete_one({})
+        # Procesar el archivo ZIP
+        # Procesar el archivo ZIP
+        with zipfile.ZipFile(zip_file) as zip_ref:
+        with zipfile.ZipFile(zip_file) as zip_ref:
+            # Crear un directorio temporal para extraer los archivos
+            # Crear un directorio temporal para extraer los archivos
+            temp_dir = os.path.join(os.path.dirname(__file__), 'temp')
+            temp_dir = os.path.join(os.path.dirname(__file__), 'temp')
+            os.makedirs(temp_dir, exist_ok=True)
+            os.makedirs(temp_dir, exist_ok=True)
+            
+            
+            # Extraer los archivos
+            # Extraer los archivos
+            zip_ref.extractall(temp_dir)
+            zip_ref.extractall(temp_dir)
+            
+            
+            # Procesar cada archivo JSON
+            # Procesar cada archivo JSON
+            for root, _, files in os.walk(temp_dir):
+            for root, _, files in os.walk(temp_dir):
+                for file in files:
+                for file in files:
+                    if file.endswith('.json'):
+                    if file.endswith('.json'):
+                        file_path = os.path.join(root, file)
+                        file_path = os.path.join(root, file)
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            try:
+                            try:
+                                json_data = json.load(f)
+                                json_data = json.load(f)
+                                # Si el JSON es una lista, insertar cada elemento
+                                # Si el JSON es una lista, insertar cada elemento
+                                if isinstance(json_data, list):
+                                if isinstance(json_data, list):
+                                    collection.insert_many(json_data)
+                                    collection.insert_many(json_data)
+                                else:
+                                else:
+                                    collection.insert_one(json_data)
+                                    collection.insert_one(json_data)
+                            except json.JSONDecodeError:
+                            except json.JSONDecodeError:
+                                print(f"Error al procesar el archivo {file}")
+                                print(f"Error al procesar el archivo {file}")
+                            except Exception as e:
+                            except Exception as e:
+                                print(f"Error al insertar datos del archivo {file}: {str(e)}")
+                                print(f"Error al insertar datos del archivo {file}: {str(e)}")
+            
+            
+            # Limpiar el directorio temporal
+            # Limpiar el directorio temporal
+            for root, dirs, files in os.walk(temp_dir, topdown=False):
+            for root, dirs, files in os.walk(temp_dir, topdown=False):
+                for file in files:
+                for file in files:
+                    os.remove(os.path.join(root, file))
+                    os.remove(os.path.join(root, file))
+                for dir in dirs:
+                for dir in dirs:
+                    os.rmdir(os.path.join(root, dir))
+                    os.rmdir(os.path.join(root, dir))
+            os.rmdir(temp_dir)
+            os.rmdir(temp_dir)
         
-        return redirect(url_for('gestion_proyecto', database=database_name))
+        
+        return redirect(url_for('gestion_proyecto', database=database))
+        return redirect(url_for('gestion_proyecto', database=database))
+        
         
     except Exception as e:
-        return render_template('gestion/crear_base_datos.html',
-                            error_message=f'Error al crear la base de datos: {str(e)}',
+    except Exception as e:
+        return render_template('gestion/crear_coleccion.html',
+        return render_template('gestion/crear_coleccion.html',
+                            error_message=f'Error al crear la colección: {str(e)}',
+                            error_message=f'Error al crear la colección: {str(e)}',
+                            database=database,
+                            database=database,
+                            usuario=session['usuario'],
+                            usuario=session['usuario'],
                             version=VERSION_APP,
-                            creador=CREATOR_APP,
-                            usuario=session['usuario'])
+                            version=VERSION_APP,
+                            creador=CREATOR_APP)
+                            creador=CREATOR_APP)
+    finally:
     finally:
         if 'client' in locals():
+        if 'client' in locals():
             client.close()
-
-
+            client.close()
+@app.route('/ver-registros/<database>/<collection>')
+@app.route('/ver-registros/<database>/<collection>')
+def ver_registros(database, collection):
+def ver_registros(database, collection):
+    if 'usuario' not in session:
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+        return redirect(url_for('login'))
+    
+    
+    try:
+    try:
+        client = connect_mongo()
+        client = connect_mongo()
+        if not client:
+        if not client:
+            return render_template('gestion/index.html',
+            return render_template('gestion/index.html',
+                                error_message='Error de conexión con MongoDB',
+                                error_message='Error de conexión con MongoDB',
+                                version=VERSION_APP,
+                                version=VERSION_APP,
+                                creador=CREATOR_APP,
+                                creador=CREATOR_APP,
+                                usuario=session['usuario'])
+                                usuario=session['usuario'])
+        
+        
+        db = client[database]
+        db = client[database]
+        collection_obj = db[collection]
+        collection_obj = db[collection]
+        
+        
+        # Obtener los primeros 100 registros por defecto
+        # Obtener los primeros 100 registros por defecto
+        records = list(collection_obj.find().limit(100))
+        records = list(collection_obj.find().limit(100))
+        
+        
+        # Convertir ObjectId a string para serialización JSON
+        # Convertir ObjectId a string para serialización JSON
+        for record in records:
+        for record in records:
+            record['_id'] = str(record['_id'])
+            record['_id'] = str(record['_id'])
+        
+        
+        return render_template('gestion/ver_registros.html',
+        return render_template('gestion/ver_registros.html',
+                            database=database,
+                            database=database,
+                            collection_name=collection,
+                            collection_name=collection,
+                            records=records,
+                            records=records,
+                            version=VERSION_APP,
+                            version=VERSION_APP,
+                            creador=CREATOR_APP,
+                            creador=CREATOR_APP,
+                            usuario=session['usuario'])
+                            usuario=session['usuario'])
+    except Exception as e:
+    except Exception as e:
+        return render_template('gestion/index.html',
+        return render_template('gestion/index.html',
+                            error_message=f'Error al obtener registros: {str(e)}',
+                            error_message=f'Error al obtener registros: {str(e)}',
+                            version=VERSION_APP,
+                            version=VERSION_APP,
+                            creador=CREATOR_APP,
+                            creador=CREATOR_APP,
+                            usuario=session['usuario'])
+                            usuario=session['usuario'])
+    finally:
+    finally:
+        if 'client' in locals():
+        if 'client' in locals():
+            client.close()
+            client.close()
+@app.route('/obtener-registros', methods=['POST'])
+@app.route('/obtener-registros', methods=['POST'])
+def obtener_registros():
+def obtener_registros():
+    if 'usuario' not in session:
+    if 'usuario' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    
+    try:
+    try:
+        database = request.form.get('database')
+        database = request.form.get('database')
+        collection = request.form.get('collection')
+        collection = request.form.get('collection')
+        limit = int(request.form.get('limit', 100))
+        limit = int(request.form.get('limit', 100))
+        
+        
+        client = connect_mongo()
+        client = connect_mongo()
+        if not client:
+        if not client:
+            return jsonify({'error': 'Error de conexión con MongoDB'}), 500
+            return jsonify({'error': 'Error de conexión con MongoDB'}), 500
+        
+        
+        db = client[database]
+        db = client[database]
+        collection_obj = db[collection]
+        collection_obj = db[collection]
+        
+        
+        # Obtener los registros con el límite especificado
+        # Obtener los registros con el límite especificado
+        records = list(collection_obj.find().limit(limit))
+        records = list(collection_obj.find().limit(limit))
+        
+        
+        # Convertir ObjectId a string para serialización JSON
+        # Convertir ObjectId a string para serialización JSON
+        for record in records:
+        for record in records:
+            record['_id'] = str(record['_id'])
+            record['_id'] = str(record['_id'])
+        
+        
+        return jsonify({'records': records})
+        return jsonify({'records': records})
+    except Exception as e:
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': str(e)}), 500
+    finally:
+    finally:
+        if 'client' in locals():
+        if 'client' in locals():
+            client.close()
+            client.close()
+@app.route('/crear-base-datos-form')
+@app.route('/crear-base-datos-form')
+def crear_base_datos_form():
+def crear_base_datos_form():
+    if 'usuario' not in session:
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+        return redirect(url_for('login'))
+    return render_template('gestion/crear_base_datos.html',
+    return render_template('gestion/crear_base_datos.html',
+                         version=VERSION_APP,
+                         version=VERSION_APP,
+                         creador=CREATOR_APP,
+                         creador=CREATOR_APP,
+                         usuario=session['usuario'])
+                         usuario=session['usuario'])
+@app.route('/crear-base-datos', methods=['POST'])
+@app.route('/crear-base-datos', methods=['POST'])
+def crear_base_datos():
+def crear_base_datos():
+    if 'usuario' not in session:
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+        return redirect(url_for('login'))
+    
+    
+    try:
+    try:
+        database_name = request.form.get('database_name')
+        database_name = request.form.get('database_name')
+        collection_name = request.form.get('collection_name')
+        collection_name = request.form.get('collection_name')
+        
+        
+        # Validar que los nombres no contengan caracteres especiales
+        # Validar que los nombres no contengan caracteres especiales
+        valid_pattern = re.compile(r'^[a-zA-Z0-9_]+$')
+        valid_pattern = re.compile(r'^[a-zA-Z0-9_]+$')
+        if not valid_pattern.match(database_name) or not valid_pattern.match(collection_name):
+        if not valid_pattern.match(database_name) or not valid_pattern.match(collection_name):
+            return render_template('gestion/crear_base_datos.html',
+            return render_template('gestion/crear_base_datos.html',
+                                error_message='Los nombres no pueden contener tildes, espacios ni caracteres especiales',
+                                error_message='Los nombres no pueden contener tildes, espacios ni caracteres especiales',
+                                version=VERSION_APP,
+                                version=VERSION_APP,
+                                creador=CREATOR_APP,
+                                creador=CREATOR_APP,
+                                usuario=session['usuario'])
+                                usuario=session['usuario'])
+        
+        
+        # Conectar a MongoDB
+        # Conectar a MongoDB
+        client = connect_mongo()
+        client = connect_mongo()
+        if not client:
+        if not client:
+            return render_template('gestion/crear_base_datos.html',
+            return render_template('gestion/crear_base_datos.html',
+                                error_message='Error de conexión con MongoDB',
+                                error_message='Error de conexión con MongoDB',
+                                version=VERSION_APP,
+                                version=VERSION_APP,
+                                creador=CREATOR_APP,
+                                creador=CREATOR_APP,
+                                usuario=session['usuario'])
+                                usuario=session['usuario'])
+        
+        
+        # Crear la base de datos y la colección
+        # Crear la base de datos y la colección
+        db = client[database_name]
+        db = client[database_name]
+        collection = db[collection_name]
+        collection = db[collection_name]
+        
+        
+        # Insertar un documento vacío para crear la colección
+        # Insertar un documento vacío para crear la colección
+        collection.insert_one({})
+        collection.insert_one({})
+        
+        
+        # Eliminar el documento vacío
+        # Eliminar el documento vacío
+        collection.delete_one({})
+        collection.delete_one({})
+        
+        
+        return redirect(url_for('gestion_proyecto', database=database_name))
+        return redirect(url_for('gestion_proyecto', database=database_name))
+        
+        
+    except Exception as e:
+    except Exception as e:
+        return render_template('gestion/crear_base_datos.html',
+        return render_template('gestion/crear_base_datos.html',
+                            error_message=f'Error al crear la base de datos: {str(e)}',
+                            error_message=f'Error al crear la base de datos: {str(e)}',
+                            version=VERSION_APP,
+                            version=VERSION_APP,
+                            creador=CREATOR_APP,
+                            creador=CREATOR_APP,
+                            usuario=session['usuario'])
+                            usuario=session['usuario'])
+    finally:
+    finally:
+        if 'client' in locals():
+        if 'client' in locals():
+            client.close()
+            client.close()
+@app.route('/logout')
 @app.route('/logout')
 def logout():
+def logout():
+    # Limpiar todas las variables de sesión
     # Limpiar todas las variables de sesión
     session.clear()
+    session.clear()
+    # Redirigir al index principal
     # Redirigir al index principal
     return redirect(url_for('index'))
-
+    return redirect(url_for('index'))
 @app.route('/elasticAdmin')
 def elasticAdmin():
     if 'usuario' not in session:
@@ -401,7 +752,6 @@ def elasticAdmin():
                             version=VERSION_APP,
                             creador=CREATOR_APP,
                             usuario=session['usuario'])
-
 @app.route('/elastic-agregar-documentos', methods=['GET', 'POST'])
 def elastic_agregar_documentos():
     if 'usuario' not in session:
@@ -487,7 +837,6 @@ def elastic_agregar_documentos():
                          version=VERSION_APP,
                          creador=CREATOR_APP,
                          usuario=session['usuario'])
-
 @app.route('/elastic-listar-documentos')
 def elastic_listar_documentos():
     if 'usuario' not in session:
@@ -518,7 +867,6 @@ def elastic_listar_documentos():
                             version=VERSION_APP,
                             creador=CREATOR_APP,
                             usuario=session['usuario'])
-
 @app.route('/elastic-eliminar-documento', methods=['POST'])
 def elastic_eliminar_documento():
     if 'usuario' not in session:
@@ -538,7 +886,6 @@ def elastic_eliminar_documento():
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
 @app.route('/buscador', methods=['GET', 'POST'])
 def buscador():
     if request.method == 'POST':
@@ -548,13 +895,11 @@ def buscador():
             search_text = request.form.get('search_text')
             fecha_desde = request.form.get('fecha_desde')
             fecha_hasta = request.form.get('fecha_hasta')
-
             # Establecer fechas por defecto si están vacías
             if not fecha_desde:
                 fecha_desde = "1500-01-01"
             if not fecha_hasta:
                 fecha_hasta = datetime.now().strftime("%Y-%m-%d")
-
             # Construir la consulta base
             query = {
                 "query": {
@@ -586,7 +931,6 @@ def buscador():
                     }
                 }
             }
-
             # Agregar condición de búsqueda según el tipo
             if search_type == 'texto':
                 query["query"]["bool"]["must"].extend([
@@ -604,7 +948,6 @@ def buscador():
                 query["query"]["bool"]["must"].append(
                     {"match": {search_type: search_text}}
                 )
-
             # Agregar rango de fechas
             range_query = {
                 "range": {
@@ -616,17 +959,14 @@ def buscador():
                 }
             }
             query["query"]["bool"]["must"].append(range_query)
-
             # Ejecutar la búsqueda en Elasticsearch
             response = client.search(
                 index=INDEX_NAME,
                 body=query
             )
-
             # Preparar los resultados para la plantilla
             hits         = response['hits']['hits']
             aggregations = response['aggregations']
-
             return render_template('buscador.html',
                                 version=VERSION_APP,
                                 creador=CREATOR_APP,
@@ -647,23 +987,20 @@ def buscador():
     return render_template('buscador.html',
                         version=VERSION_APP,
                         creador=CREATOR_APP)
-
 @app.route('/api/search', methods=['POST'])
 def search():
     try:
         data = request.get_json()
         index_name = data.get('index', 'ucentral_test')
         query = data.get('query')
-
         # Ejecutar la búsqueda en Elasticsearch
         response = client.search(
             index=INDEX_NAME,
             body=query
         )
-
         return jsonify(response)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
+if __name__ == '__main__':
 if __name__ == '__main__':
     app.run(debug=True)
