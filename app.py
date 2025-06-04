@@ -12,9 +12,8 @@ app = Flask(__name__)
 app.secret_key = 'tu_clave_secreta_aqui'  # Cambia esto por una clave secreta segura
 
 # Versión de la aplicación
-VERSION_APP = "Versión 1.3 del Mayo 15 del 2025"
-#
-CREATOR_APP = "Nombre del creador/ruta github"
+VERSION_APP = "Versión 5 del Junio 04 del 2025"
+CREATOR_APP = "L. Fernanda Rodriguez Pardo/https://github.com/lfernandarp/BigDataApp"
 
 mongo_uri = os.environ.get("MONGO_URI")
 
@@ -33,6 +32,13 @@ def connect_mongo():
     except Exception as e:
         print(f"Error al conectar a MongoDB: {e}")
         return None
+        
+# Configuración de Elasticsearch
+client = Elasticsearch(
+    "https://my-elasticsearch-project-d7d237.es.us-east-1.aws.elastic.cloud:443",
+    api_key="azhsNlBKY0JzQWRhVTM5dm5GOVA6akpSMXZua0M3cVdja2hRRUhZS1lFdw=="
+)
+INDEX_NAME = "lfrpucentral"
 
 @app.route('/')
 def index():
