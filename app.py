@@ -21,6 +21,7 @@ mongo_uri = os.environ.get("MONGO_URI")
 if not mongo_uri:
     # Usar la URI directamente (menos seguro, solo para desarrollo local)
     uri = "mongodb+srv://LFRODRIGUEZP:NuevaClave123@cluster0.gngwz8p.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+
     mongo_uri = uri
 
 # Función para conectar a MongoDB
@@ -48,29 +49,7 @@ def index():
 def about():
     return render_template('about.html', version=VERSION_APP,creador=CREATOR_APP)
 
-@app.route('/contacto', methods=['GET', 'POST'])
-def contacto():
-    if request.method == 'POST':
-        # Aquí va la lógica para procesar el formulario de contacto
-        return redirect(url_for('contacto'))
-    return render_template('contacto.html', version=VERSION_APP,creador=CREATOR_APP)
-@app.route('/buscador', methods=['GET', 'POST'])
-def buscador():
-    if request.method == 'POST':
-        # Aquí irá la lógica de búsqueda
-        search_type = request.form.get('search_type')
-        fecha_desde = request.form.get('fecha_desde')
-        fecha_hasta = request.form.get('fecha_hasta')
-        search_text = request.form.get('search_text')
-        
-        # TODO: Implementar la lógica de búsqueda
-        return render_template('buscador.html',
-                            version=VERSION_APP,
-                            creador=CREATOR_APP)
-    
-    return render_template('buscador.html',
-                         version=VERSION_APP,
-                         creador=CREATOR_APP)
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
