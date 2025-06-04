@@ -1,24 +1,40 @@
-
 body {
-    background: linear-gradient(to right, #255821, #40E0D0);
+    font-family: 'Century Gothic', sans-serif;
+    background: linear-gradient(to right, #4c3b75, #eae6f1); /* violeta sobrio a claro */
     min-height: 100vh;
     margin: 0;
     padding: 0;
+    color: #2d2d2d;
 }
+
 .header {
-    background-color: rgba(255, 255, 255, 0.9);
-    padding: 1rem 0;
+    background-color: rgba(76, 59, 117, 0.9); /* violeta oscuro */
+    padding: 2rem 0;
+    text-align: center;
+    color: #f3e5ab; /* dorado claro */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
+
 .container {
-    background-color: rgba(255, 255, 255, 0.9);
+    background-color: rgba(255, 255, 255, 0.95);
     padding: 2rem;
-    border-radius: 10px;
+    border-radius: 12px;
     margin-top: 2rem;
+    width: 80%;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+    text-align: center;
 }
+
 footer {
-    background-color: rgba(0, 95, 73, 0.9);
+    background-color: rgba(64, 51, 102, 0.9); /* violeta profundo */
     padding: 1rem 0;
     margin-top: 2rem;
-    color: #666;
+    color: #e0d8aa; /* dorado suave */
+    text-align: center;
+    font-size: 0.9rem;
 }
+
     
