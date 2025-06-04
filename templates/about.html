@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Proyecto final de BigData para gestión y análisis de datos con MongoDB">
     <title>Acerca de - BigData Proyecto Final</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
     <link href="{{ url_for('static', filename='css/landingPage.css') }}" rel="stylesheet">
@@ -11,7 +12,7 @@
     <header class="header">
         <div class="container">
             <div class="d-flex justify-content-between align-items-center">
-                <h1 class="h3 mb-0">BigData Proyecto Fianl</h1>
+                <h1 class="h3 mb-0">BigData Proyecto Final</h1>
                 <nav>
                     <ul class="nav">
                         <li class="nav-item"><a class="nav-link" href="/">Inicio</a></li>
@@ -25,31 +26,31 @@
         </div>
     </header>
 
-    <div class="container">
+    <main class="container">
         <h1 class="text-center mb-4">BigData Proyecto Final</h1>
-        <h3 class="text-center mb-4">Creado Por Fernanda Rodríguez Parda</h3>
+        <h3 class="text-center mb-4">Creado Por Fernanda Rodríguez Pardo</h3>
         <p class="text-center mb-4">Este proyecto es una aplicación web desarrollada para la gestión y análisis de datos utilizando MongoDB. Permite a los usuarios explorar bases de datos, visualizar colecciones y realizar consultas avanzadas sobre grandes volúmenes de información.</p>
         
         <div class="row justify-content-center">
             <div class="col-md-6 text-center">
-                <img src="static/img/creador.png" alt="Foto del creador" class="profile-img">
-                <h4>XYZ</h4>
+                <img src="{{ url_for('static', filename='img/creador.png') }}" alt="Foto de Fernanda Rodríguez Pardo" class="profile-img">
+                <h4>Fernanda Rodríguez Pardo</h4>
                 <p>Maestría en Analítica de Datos</p>
                 <p>Universidad Central</p>
                 
                 <div class="social-links mt-3">
-                    <a href="https://github.com/xyz" target="_blank" class="btn btn-primary">GitHub</a>
-                    <a href="https://linkedin.com/in/xyz" target="_blank" class="btn btn-warning">LinkedIn</a>
-                    <a href="https://twitter.com/xyz" target="_blank"  class="btn btn-success">Twitter</a>
+                    <a href="https://github.com/xyz" target="_blank" class="btn btn-primary" aria-label="GitHub">GitHub</a>
+                    <a href="https://linkedin.com/in/xyz" target="_blank" class="btn btn-warning" aria-label="LinkedIn">LinkedIn</a>
+                    <a href="https://twitter.com/xyz" target="_blank" class="btn btn-success" aria-label="Twitter">Twitter</a>
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 
     <footer class="text-center">
-        <p class="mb-0">Creado por {{ L. Fernanda Rodríguez Pardo }}</p>
+        <p class="mb-0">Creado por Fernanda Rodríguez Pardo</p>
         <p class="mb-0" id="current-year"></p>
-        <p class="mb-0" id="version_app">{{ version }}</p>
+        <p class="mb-0">Versión 1.0</p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq4cvVmFh9vju3MXgpoK" crossorigin="anonymous"></script>
@@ -57,4 +58,4 @@
         document.getElementById('current-year').textContent = new Date().getFullYear();
     </script>
 </body>
-</html> 
+</html>
