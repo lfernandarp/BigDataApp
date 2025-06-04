@@ -37,7 +37,7 @@ def connect_mongo():
 # Configuración de Elasticsearch
 client = Elasticsearch(
     "https://my-elasticsearch-project-d7d237.es.us-east-1.aws.elastic.cloud:443",
-    api_key="eGFocUxwY0Jod0NLS21GMEJudXQ6OG1VN0I2dVk0SU5zTFB0Mi1OZkY1Zw=="
+    api_key="QzZnUE9aY0Jod0NLS21GMGozeUo6bUNqbUUyV2c1Y3IwbXBtcmJtMElvUQ=="
 )
 INDEX_NAME = "lfrpucentral"
 
@@ -48,34 +48,7 @@ def index():
 def about():
     return render_template('about.html', version=VERSION_APP,creador=CREATOR_APP)
 
-@app.route("/contacto", methods=["GET", "POST"])
-def contacto():
-    if request.method == 'POST':
-        client = connect_mongo()
-        if not client:
-            return render_template('login.html', error_message='Error de conexión con la base de datos. Por favor, intente más tarde.', version=VERSION_APP,creador=CREATOR_APP)
-        try:
-            db = client['administracion']
-            security_collection = db['contacto']
-            nombre = request.form.get('nombre')
-            email = request.form.get('email')
-            asunto = request.form.get('asunto')
-            mensaje = request.form.get('mensaje')
-            fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            # Guardar el mensaje en la base de datos
-            security_collection.insert_one({
-                'nombre': nombre,
-                'email': email,
-                'asunto': asunto,
-                'mensaje': mensaje,
-                'fecha': fecha
-            })
-            return render_template('contacto.html', success_message='Mensaje enviado con éxito', version=VERSION_APP,creador=CREATOR_APP)
-        except Exception as e:
-            return render_template('contacto.html', error_message=f'Error al enviar el mensaje: {str(e)}', version=VERSION_APP,creador=CREATOR_APP)
-        finally:
-            client.close()  
-    return render_template('contacto.html',version=VERSION_APP,creador=CREATOR_APP)
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
