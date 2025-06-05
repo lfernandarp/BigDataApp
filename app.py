@@ -1,4 +1,3 @@
-from elasticsearch import Elasticsearch
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
@@ -7,20 +6,25 @@ import os
 from datetime import datetime
 import json
 import re
+from elasticsearch import Elasticsearch
 
 app = Flask(__name__)
 app.secret_key = 'tu_clave_secreta_aqui'  # Cambia esto por una clave secreta segura
 
-# Versión de la aplicación
-VERSION_APP = "Versión 5 del Junio 04 del 2025"
-CREATOR_APP = "L. Fernanda Rodriguez Pardo/https://github.com/lfernandarp/BigDataApp"
+# Agregar la función now al contexto de la plantilla
+@app.context_processor
+def inject_now():
+    return {'now': datetime.now}
 
-mongo_uri = os.environ.get("MONGO_URI")
+# Versión de la aplicación
+VERSION_APP = "Versión 2.2 del Mayo 22 del 2025"
+CREATOR_APP = "Nombre del creador/ruta github"
+mongo_uri   = os.environ.get("https://cloud.mongodb.com/v2/683cd493c103aa5560f461de#/clusters/detail/Cluster0")
 
 if not mongo_uri:
-    # Usar la URI directamente (menos seguro, solo para desarrollo local)
-    uri = "mongodb+srv://LFRODRIGUEZP:NuevaClave123@cluster0.gngwz8p.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-    mongo_uri = uri
+    #uri = "mongodb+srv://DbCentral:DbCentral2025@cluster0.vhltza7.mongodb.net/?appName=Cluster0"
+    uri         = "mongodb+srv://LFRODRIGUEZP:NuevaClave123@cluster0.gngwz8p.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+    mongo_uri   = uri
 
 # Función para conectar a MongoDB
 def connect_mongo():
@@ -32,17 +36,18 @@ def connect_mongo():
     except Exception as e:
         print(f"Error al conectar a MongoDB: {e}")
         return None
-        
+
 # Configuración de Elasticsearch
 client = Elasticsearch(
     "https://my-elasticsearch-project-d7d237.es.us-east-1.aws.elastic.cloud:443",
-    api_key="azhsNlBKY0JzQWRhVTM5dm5GOVA6akpSMXZua0M3cVdja2hRRUhZS1lFdw=="
+    api_key="QzZnUE9aY0Jod0NLS21GMGozeUo6bUNqbUUyV2c1Y3IwbXBtcmJtMElvUQ=="
 )
 INDEX_NAME = "lfrpucentral"
 
 @app.route('/')
 def index():
     return render_template('index.html', version=VERSION_APP,creador=CREATOR_APP)
+
 @app.route('/about')
 def about():
     return render_template('about.html', version=VERSION_APP,creador=CREATOR_APP)
@@ -53,25 +58,6 @@ def contacto():
         # Aquí va la lógica para procesar el formulario de contacto
         return redirect(url_for('contacto'))
     return render_template('contacto.html', version=VERSION_APP,creador=CREATOR_APP)
-
-@app.route('/buscador', methods=['GET', 'POST'])
-def buscador():
-    if request.method == 'POST':
-        # Aquí irá la lógica de búsqueda
-        search_type = request.form.get('search_type')
-        fecha_desde = request.form.get('fecha_desde')
-        fecha_hasta = request.form.get('fecha_hasta')
-        search_text = request.form.get('search_text')
-        
-        #TODO: Implementar la lógica de búsqueda
-        return render_template('buscador.html',
-                            version=VERSION_APP,
-                            creador=CREATOR_APP)
-    
-    return render_template('buscador.html',
-                         version=VERSION_APP,
-                         creador=CREATOR_APP)
-
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -86,7 +72,6 @@ def login():
             security_collection = db['seguridad']
             usuario = request.form['usuario']
             password = request.form['password']
-            
             # Verificar credenciales en MongoDB
             user = security_collection.find_one({
                 'usuario': usuario,
@@ -100,10 +85,37 @@ def login():
                 return render_template('login.html', error_message='Usuario o contraseña incorrectos', version=VERSION_APP,creador=CREATOR_APP)
         except Exception as e:
             return render_template('login.html', error_message=f'Error al validar credenciales: {str(e)}', version=VERSION_APP,creador=CREATOR_APP)
+            
         finally:
             client.close()
     
     return render_template('login.html', version=VERSION_APP,creador=CREATOR_APP)
+
+@app.route('/listar-usuarios')
+def listar_usuarios():
+    try:
+        client = connect_mongo()
+        if not client:
+            return jsonify({'error': 'Error de conexión con la base de datos'}), 500
+        
+        db = client['administracion']
+        security_collection = db['seguridad']
+        
+        # Obtener todos los usuarios, excluyendo la contraseña por seguridad
+        #usuarios = list(security_collection.find({}, {'password': 0}))
+
+        usuarios = list(security_collection.find())
+        
+        # Convertir ObjectId a string para serialización JSON
+        for usuario in usuarios:
+            usuario['_id'] = str(usuario['_id'])
+        
+        return jsonify(usuarios)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if 'client' in locals():
+            client.close()
 
 @app.route('/gestion_proyecto', methods=['GET', 'POST'])
 def gestion_proyecto():
@@ -147,41 +159,15 @@ def gestion_proyecto():
                             creador=CREATOR_APP,
                             usuario=session['usuario'])
 
-@app.route('/listar-usuarios')
-def listar_usuarios():
-    try:
-        client = connect_mongo()
-        if not client:
-            return jsonify({'error': 'Error de conexión con la base de datos'}), 500
-        
-        db = client['administracion']
-        security_collection = db['seguridad']
-        
-        # Obtener todos los usuarios, excluyendo la contraseña por seguridad
-        #usuarios = list(security_collection.find({}, {'password': 0}))
-
-        usuarios = list(security_collection.find())
-        
-        # Convertir ObjectId a string para serialización JSON
-        for usuario in usuarios:
-            usuario['_id'] = str(usuario['_id'])
-        
-        return jsonify(usuarios)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if 'client' in locals():
-            client.close()
-
 @app.route('/crear-coleccion-form/<database>')
 def crear_coleccion_form(database):
     if 'usuario' not in session:
         return redirect(url_for('login'))
     return render_template('gestion/crear_coleccion.html', 
-                         database=database,
-                         usuario=session['usuario'],
-                         version=VERSION_APP,
-                         creador=CREATOR_APP)
+                        database=database,
+                        usuario=session['usuario'],
+                        version=VERSION_APP,
+                        creador=CREATOR_APP)
 
 @app.route('/crear-coleccion', methods=['POST'])
 def crear_coleccion():
@@ -340,9 +326,9 @@ def crear_base_datos_form():
     if 'usuario' not in session:
         return redirect(url_for('login'))
     return render_template('gestion/crear_base_datos.html',
-                         version=VERSION_APP,
-                         creador=CREATOR_APP,
-                         usuario=session['usuario'])
+                        version=VERSION_APP,
+                        creador=CREATOR_APP,
+                        usuario=session['usuario'])
 
 @app.route('/crear-base-datos', methods=['POST'])
 def crear_base_datos():
@@ -392,7 +378,6 @@ def crear_base_datos():
     finally:
         if 'client' in locals():
             client.close()
-
 
 @app.route('/logout')
 def logout():
@@ -686,6 +671,6 @@ def search():
         return jsonify(response)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)
-
