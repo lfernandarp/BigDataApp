@@ -17,8 +17,8 @@ def inject_now():
     return {'now': datetime.now}
 
 # Versión de la aplicación
-VERSION_APP = "Versión 2.2 del Mayo 22 del 2025"
-CREATOR_APP = "Nombre del creador/ruta github"
+VERSION_APP = "Versión 5 del junio 04 del 2025"
+CREATOR_APP = "L. Fernanda Rodriguez Pardo / https://github.com/lfernandarp/BigDataApp/blob/main/templates/buscador.html"
 mongo_uri   = os.environ.get("https://cloud.mongodb.com/v2/683cd493c103aa5560f461de#/metrics/replicaSet/683cd4e6e1ccf347605ac50a/explorer/administracion/contacto/find")
 
 if not mongo_uri:
@@ -56,7 +56,7 @@ def about():
 def contacto():
     if request.method == 'POST':
         # Aquí va la lógica para procesar el formulario de contacto
-        return redirect(url_for('contacto'))
+        return redirect(url_for('contacto.html'))
     return render_template('contacto.html', version=VERSION_APP,creador=CREATOR_APP)
 
 @app.route('/login', methods=['GET', 'POST'])
