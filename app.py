@@ -19,11 +19,11 @@ def inject_now():
 # Versión de la aplicación
 VERSION_APP = "Versión 2.2 del Mayo 22 del 2025"
 CREATOR_APP = "Nombre del creador/ruta github"
-mongo_uri   = os.environ.get("https://cloud.mongodb.com/v2/683cd493c103aa5560f461de#/clusters/detail/Cluster0")
+mongo_uri   = os.environ.get("https://cloud.mongodb.com/v2/683cd493c103aa5560f461de#/metrics/replicaSet/683cd4e6e1ccf347605ac50a/explorer/administracion/contacto/find")
 
 if not mongo_uri:
     #uri = "mongodb+srv://DbCentral:DbCentral2025@cluster0.vhltza7.mongodb.net/?appName=Cluster0"
-    uri         = "mongodb+srv://LFRODRIGUEZP:NuevaClave123@cluster0.gngwz8p.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+    uri  = "mongodb+srv://LFRODRIGUEZP:NuevaClave123@cluster0.gngwz8p.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
     mongo_uri   = uri
 
 # Función para conectar a MongoDB
