@@ -575,19 +575,15 @@ def elastic_eliminar_documento():
 def buscador():
     if request.method == 'POST':
         try:
-            # Obtener los parámetros del formulario
             search_type = request.form.get('search_type')
             search_text = request.form.get('search_text')
-            fecha_desde = request.form.get('fecha_desde')
-            fecha_hasta = request.form.get('fecha_hasta')
+            fecha_desde = request.form.get('fecha_desde') or "1500-01-01"
+            fecha_hasta = request.form.get('fecha_hasta') or datetime.now().strftime("%Y-%m-%d")
 
-            # Establecer fechas por defecto si están vacías
-            if not fecha_desde:
-                fecha_desde = "1500-01-01"
-            if not fecha_hasta:
-                fecha_hasta = datetime.now().strftime("%Y-%m-%d")
-
-            # Construir la consulta base
+            # Lista blanca de campos permitidos
+            ALLOWED_FIELDS = ['titulo', 'autor', 'categoria', 'clasificacion']
+            if search_type not in ALLOWED_FIELDS and search_type != 'texto':
+                raise ValueError("Campo de búsqueda no permitido")
             query = {
                 "query": {
                     "bool": {
@@ -618,27 +614,25 @@ def buscador():
                     }
                 }
             }
-
-            # Agregar condición de búsqueda según el tipo
             if search_type == 'texto':
-                query["query"]["bool"]["must"].extend([
-                    {
-                        "match_phrase": {
-                            "texto": {
-                                "query": search_text,
-                                "slop": 1
-                            }
+                query["query"]["bool"]["must"].append({
+                    "match_phrase": {
+                        "texto": {
+                            "query": search_text,
+                            "slop": 1
                         }
                     }
-                ])
-            else:           #si no es una búsqueda por texto
-                search_text='*'+search_text+'*'
-                query["query"]["bool"]["must"].append(
-                    {"match": {search_type: search_text}}
-                )
+                })
+            else:
+                query["query"]["bool"]["must"].append({
+                    "wildcard": {
+                        search_type: {
+                            "value": f"*{search_text.lower()}*"
+                        }
+                    }
+                })
 
-            # Agregar rango de fechas
-            range_query = {
+            query["query"]["bool"]["must"].append({
                 "range": {
                     "fecha": {
                         "format": "yyyy-MM-dd",
@@ -646,39 +640,36 @@ def buscador():
                         "lte": fecha_hasta
                     }
                 }
-            }
-            query["query"]["bool"]["must"].append(range_query)
+            })
 
-            # Ejecutar la búsqueda en Elasticsearch
             response = client.search(
                 index=INDEX_NAME,
                 body=query
             )
 
-            # Preparar los resultados para la plantilla
-            hits         = response['hits']['hits']
+            hits = response['hits']['hits']
             aggregations = response['aggregations']
 
             return render_template('buscador.html',
-                                version=VERSION_APP,
-                                creador=CREATOR_APP,
-                                hits=hits,
-                                aggregations=aggregations,
-                                search_type=search_type,
-                                search_text=search_text,
-                                fecha_desde=fecha_desde,
-                                fecha_hasta=fecha_hasta,
-                                query=query)
-        
+                                   version=VERSION_APP,
+                                   creador=CREATOR_APP,
+                                   hits=hits,
+                                   aggregations=aggregations,
+                                   search_type=search_type,
+                                   search_text=search_text,
+                                   fecha_desde=fecha_desde,
+                                   fecha_hasta=fecha_hasta,
+                                   query=query)
+
         except Exception as e:
             return render_template('buscador.html',
-                                version=VERSION_APP,
-                                creador=CREATOR_APP,
-                                error_message=f'Error en la búsqueda: {str(e)}')
-    
+                                   version=VERSION_APP,
+                                   creador=CREATOR_APP,
+                                   error_message=f'Error en la búsqueda: {str(e)}')
+
     return render_template('buscador.html',
-                        version=VERSION_APP,
-                        creador=CREATOR_APP)
+                           version=VERSION_APP,
+                           creador=CREATOR_APP)
 
 @app.route('/api/search', methods=['POST'])
 def search():
