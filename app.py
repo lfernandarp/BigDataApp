@@ -53,11 +53,36 @@ def about():
     return render_template('about.html', version=VERSION_APP,creador=CREATOR_APP)
 
 @app.route('/contacto', methods=['GET', 'POST'])
+
 def contacto():
     if request.method == 'POST':
-        # Aquí va la lógica para procesar el formulario de contacto
-        return redirect(url_for('contacto.html'))
-    return render_template('contacto.html', version=VERSION_APP,creador=CREATOR_APP)
+        try:
+            client = connect_mongo()
+            db = client['administracion']
+            security_collection = db['contacto']
+
+            nombre = request.form.get('nombre')
+            email = request.form.get('email')
+            asunto = request.form.get('asunto')
+            mensaje = request.form.get('mensaje')
+            fecha = datetime.now().strftime("%y-%m-%d %H:%M:%S")
+
+            security_collection.insert_one({
+                'nombre': nombre,
+                'email': email,
+                'asunto': asunto,
+                'mensaje': mensaje,
+                'fecha': fecha
+            })
+
+            return render_template('contacto.html', success_message='Mensaje enviado correctamente.')
+        except Exception as e:
+            return render_template('contacto.html', error_message='Error al enviar el mensaje.')
+        finally:
+            client.close()
+
+    # Si el método no es POST, mostrar el formulario vacío
+    return render_template('contacto.html', version=VERSION_APP, creador=CREATOR_APP)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
