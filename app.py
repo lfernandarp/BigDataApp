@@ -12,9 +12,8 @@ app = Flask(__name__)
 app.secret_key = 'tu_clave_secreta_aqui'  # Cambia esto por una clave secreta segura
 
 # Versión de la aplicación
-VERSION_APP = "Versión 1.3 del Mayo 15 del 2025"
-#
-CREATOR_APP = "Nombre del creador/ruta github"
+VERSION_APP = "Versión 5 del Junio 04 del 2025"
+CREATOR_APP = "L. Fernanda Rodriguez Pardo/https://github.com/lfernandarp/BigDataApp"
 
 mongo_uri = os.environ.get("MONGO_URI")
 
@@ -33,6 +32,13 @@ def connect_mongo():
     except Exception as e:
         print(f"Error al conectar a MongoDB: {e}")
         return None
+        
+# Configuración de Elasticsearch
+client = Elasticsearch(
+    "https://my-elasticsearch-project-d7d237.es.us-east-1.aws.elastic.cloud:443",
+    api_key="azhsNlBKY0JzQWRhVTM5dm5GOVA6akpSMXZua0M3cVdja2hRRUhZS1lFdw=="
+)
+INDEX_NAME = "lfrpucentral"
 
 @app.route('/')
 def index():
@@ -48,23 +54,23 @@ def contacto():
         return redirect(url_for('contacto'))
     return render_template('contacto.html', version=VERSION_APP,creador=CREATOR_APP)
 
-@app.route('/buscador', methods=['GET', 'POST'])
-def buscador():
-    if request.method == 'POST':
-        # Aquí irá la lógica de búsqueda
-        search_type = request.form.get('search_type')
-        fecha_desde = request.form.get('fecha_desde')
-        fecha_hasta = request.form.get('fecha_hasta')
-        search_text = request.form.get('search_text')
+#@app.route('/buscador', methods=['GET', 'POST'])
+#def buscador():
+ #   if request.method == 'POST':
+  #      # Aquí irá la lógica de búsqueda
+   #     search_type = request.form.get('search_type')
+    #    fecha_desde = request.form.get('fecha_desde')
+     #   fecha_hasta = request.form.get('fecha_hasta')
+      #  search_text = request.form.get('search_text')
         
         # TODO: Implementar la lógica de búsqueda
-        return render_template('buscador.html',
-                            version=VERSION_APP,
-                            creador=CREATOR_APP)
+       # return render_template('buscador.html',
+        #                    version=VERSION_APP,
+        #                    creador=CREATOR_APP)
     
-    return render_template('buscador.html',
-                         version=VERSION_APP,
-                         creador=CREATOR_APP)
+    #return render_template('buscador.html',
+    #                     version=VERSION_APP,
+    #                     creador=CREATOR_APP)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -395,7 +401,291 @@ def logout():
     # Redirigir al index principal
     return redirect(url_for('index'))
 
+@app.route('/elasticAdmin')
+def elasticAdmin():
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+    
+    try:
+        # Obtener información del índice
+        index_info = client.indices.get(index=INDEX_NAME)
+        doc_count = client.count(index=INDEX_NAME)['count']
+        
+        return render_template('gestion/ver_elasticAdmin.html',
+                            index_name=INDEX_NAME,
+                            doc_count=doc_count,
+                            version=VERSION_APP,
+                            creador=CREATOR_APP,
+                            usuario=session['usuario'])
+    except Exception as e:
+        return render_template('gestion/ver_elasticAdmin.html',
+                            error_message=f'Error al conectar con Elasticsearch: {str(e)}',
+                            version=VERSION_APP,
+                            creador=CREATOR_APP,
+                            usuario=session['usuario'])
 
+@app.route('/elastic-agregar-documentos', methods=['GET', 'POST'])
+def elastic_agregar_documentos():
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        try:
+            if 'zipFile' not in request.files:
+                return render_template('gestion/elastic_agregar_documentos.html',
+                                    error_message='No se ha seleccionado ningún archivo',
+                                    index_name=INDEX_NAME,
+                                    version=VERSION_APP,
+                                    creador=CREATOR_APP,
+                                    usuario=session['usuario'])
+            
+            zip_file = request.files['zipFile']
+            if zip_file.filename == '':
+                return render_template('gestion/elastic_agregar_documentos.html',
+                                    error_message='No se ha seleccionado ningún archivo',
+                                    index_name=INDEX_NAME,
+                                    version=VERSION_APP,
+                                    creador=CREATOR_APP,
+                                    usuario=session['usuario'])
+            
+            # Crear directorio temporal
+            temp_dir = os.path.join(os.path.dirname(__file__), 'temp')
+            os.makedirs(temp_dir, exist_ok=True)
+            
+            # Guardar y extraer el archivo ZIP
+            zip_path = os.path.join(temp_dir, zip_file.filename)
+            zip_file.save(zip_path)
+            
+            with zipfile.ZipFile(zip_path) as zip_ref:
+                zip_ref.extractall(temp_dir)
+            
+            # Procesar archivos JSON
+            success_count = 0
+            error_count = 0
+            
+            for root, _, files in os.walk(temp_dir):
+                for file in files:
+                    if file.endswith('.json'):
+                        file_path = os.path.join(root, file)
+                        try:
+                            with open(file_path, 'r', encoding='utf-8') as f:
+                                json_data = json.load(f)
+                                if isinstance(json_data, list):
+                                    for doc in json_data:
+                                        client.index(index=INDEX_NAME, document=doc)
+                                        success_count += 1
+                                else:
+                                    client.index(index=INDEX_NAME, document=json_data)
+                                    success_count += 1
+                        except Exception as e:
+                            error_count += 1
+                            print(f"Error procesando {file}: {str(e)}")
+            
+            # Limpiar archivos temporales
+            for root, dirs, files in os.walk(temp_dir, topdown=False):
+                for file in files:
+                    os.remove(os.path.join(root, file))
+                for dir in dirs:
+                    os.rmdir(os.path.join(root, dir))
+            os.rmdir(temp_dir)
+            
+            return render_template('gestion/elastic_agregar_documentos.html',
+                                success_message=f'Se indexaron {success_count} documentos exitosamente. Errores: {error_count}',
+                                index_name=INDEX_NAME,
+                                version=VERSION_APP,
+                                creador=CREATOR_APP,
+                                usuario=session['usuario'])
+            
+        except Exception as e:
+            return render_template('gestion/elastic_agregar_documentos.html',
+                                error_message=f'Error al procesar el archivo: {str(e)}',
+                                index_name=INDEX_NAME,
+                                version=VERSION_APP,
+                                creador=CREATOR_APP,
+                                usuario=session['usuario'])
+    
+    return render_template('gestion/elastic_agregar_documentos.html',
+                         index_name=INDEX_NAME,
+                         version=VERSION_APP,
+                         creador=CREATOR_APP,
+                         usuario=session['usuario'])
+
+@app.route('/elastic-listar-documentos')
+def elastic_listar_documentos():
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+    
+    try:
+        # Obtener los primeros 100 documentos
+        response = client.search(
+            index=INDEX_NAME,
+            body={
+                "query": {"match_all": {}},
+                "size": 100
+            }
+        )
+        
+        documents = response['hits']['hits']
+        
+        return render_template('gestion/elastic_listar_documentos.html',
+                            index_name=INDEX_NAME,
+                            documents=documents,
+                            version=VERSION_APP,
+                            creador=CREATOR_APP,
+                            usuario=session['usuario'])
+    except Exception as e:
+        return render_template('gestion/elastic_listar_documentos.html',
+                            error_message=f'Error al obtener documentos: {str(e)}',
+                            index_name=INDEX_NAME,
+                            version=VERSION_APP,
+                            creador=CREATOR_APP,
+                            usuario=session['usuario'])
+
+@app.route('/elastic-eliminar-documento', methods=['POST'])
+def elastic_eliminar_documento():
+    if 'usuario' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    try:
+        doc_id = request.form.get('doc_id')
+        if not doc_id:
+            return jsonify({'error': 'ID de documento no proporcionado'}), 400
+        
+        response = client.delete(index=INDEX_NAME, id=doc_id)
+        
+        if response['result'] == 'deleted':
+            return jsonify({'success': True})
+        else:
+            return jsonify({'error': 'Error al eliminar el documento'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/buscador', methods=['GET', 'POST'])
+def buscador():
+    if request.method == 'POST':
+        try:
+            # Obtener los parámetros del formulario
+            search_type = request.form.get('search_type')
+            search_text = request.form.get('search_text')
+            fecha_desde = request.form.get('fecha_desde')
+            fecha_hasta = request.form.get('fecha_hasta')
+
+            # Establecer fechas por defecto si están vacías
+            if not fecha_desde:
+                fecha_desde = "1500-01-01"
+            if not fecha_hasta:
+                fecha_hasta = datetime.now().strftime("%Y-%m-%d")
+
+            # Construir la consulta base
+            query = {
+                "query": {
+                    "bool": {
+                        "must": []
+                    }
+                },
+                "aggs": {
+                    "categoria": {
+                        "terms": {
+                            "field": "categoria",
+                            "size": 10,
+                            "order": {"_key": "asc"}
+                        }
+                    },
+                    "clasificacion": {
+                        "terms": {
+                            "field": "clasificacion",
+                            "size": 10,
+                            "order": {"_key": "asc"}
+                        }
+                    },
+                    "Fecha": {
+                        "date_histogram": {
+                            "field": "fecha",
+                            "calendar_interval": "year",
+                            "format": "yyyy"
+                        }
+                    }
+                }
+            }
+
+            # Agregar condición de búsqueda según el tipo
+            if search_type == 'texto':
+                query["query"]["bool"]["must"].extend([
+                    {
+                        "match_phrase": {
+                            "texto": {
+                                "query": search_text,
+                                "slop": 1
+                            }
+                        }
+                    }
+                ])
+            else:           #si no es una búsqueda por texto
+                search_text='*'+search_text+'*'
+                query["query"]["bool"]["must"].append(
+                    {"match": {search_type: search_text}}
+                )
+
+            # Agregar rango de fechas
+            range_query = {
+                "range": {
+                    "fecha": {
+                        "format": "yyyy-MM-dd",
+                        "gte": fecha_desde,
+                        "lte": fecha_hasta
+                    }
+                }
+            }
+            query["query"]["bool"]["must"].append(range_query)
+
+            # Ejecutar la búsqueda en Elasticsearch
+            response = client.search(
+                index=INDEX_NAME,
+                body=query
+            )
+
+            # Preparar los resultados para la plantilla
+            hits         = response['hits']['hits']
+            aggregations = response['aggregations']
+
+            return render_template('buscador.html',
+                                version=VERSION_APP,
+                                creador=CREATOR_APP,
+                                hits=hits,
+                                aggregations=aggregations,
+                                search_type=search_type,
+                                search_text=search_text,
+                                fecha_desde=fecha_desde,
+                                fecha_hasta=fecha_hasta,
+                                query=query)
+        
+        except Exception as e:
+            return render_template('buscador.html',
+                                version=VERSION_APP,
+                                creador=CREATOR_APP,
+                                error_message=f'Error en la búsqueda: {str(e)}')
+    
+    return render_template('buscador.html',
+                        version=VERSION_APP,
+                        creador=CREATOR_APP)
+
+@app.route('/api/search', methods=['POST'])
+def search():
+    try:
+        data = request.get_json()
+        index_name = data.get('index', 'ucentral_test')
+        query = data.get('query')
+
+        # Ejecutar la búsqueda en Elasticsearch
+        response = client.search(
+            index=index_name,
+            body=query
+        )
+
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 if __name__ == '__main__':
     app.run(debug=True)
 
