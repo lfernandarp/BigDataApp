@@ -574,14 +574,6 @@ def elastic_eliminar_documento():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/buscador', methods=['GET', 'POST'])
-def validate_date(date_text):
-    """Valida si la fecha está en formato yyyy-MM-dd."""
-    try:
-        datetime.strptime(date_text, '%Y-%m-%d')
-        return True
-    except ValueError:
-        return False
-
 def buscador():
     if request.method == 'POST':
         try:
