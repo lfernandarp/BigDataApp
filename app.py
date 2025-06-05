@@ -7,6 +7,8 @@ from datetime import datetime
 import json
 import re
 from elasticsearch import Elasticsearch
+from datetime import datetime
+
 
 app = Flask(__name__)
 app.secret_key = 'tu_clave_secreta_aqui'  # Cambia esto por una clave secreta segura
@@ -572,18 +574,32 @@ def elastic_eliminar_documento():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/buscador', methods=['GET', 'POST'])
+def validate_date(date_text):
+    """Valida si la fecha está en formato yyyy-MM-dd."""
+    try:
+        datetime.strptime(date_text, '%Y-%m-%d')
+        return True
+    except ValueError:
+        return False
+
 def buscador():
     if request.method == 'POST':
         try:
             search_type = request.form.get('search_type')
-            search_text = request.form.get('search_text')
+            search_text = request.form.get('search_text', '').strip()
             fecha_desde = request.form.get('fecha_desde') or "1500-01-01"
             fecha_hasta = request.form.get('fecha_hasta') or datetime.now().strftime("%Y-%m-%d")
+
+            # Validar formato de fechas
+            if not (validate_date(fecha_desde) and validate_date(fecha_hasta)):
+                raise ValueError("Formato de fecha inválido. Usa yyyy-mm-dd.")
 
             # Lista blanca de campos permitidos
             ALLOWED_FIELDS = ['titulo', 'autor', 'categoria', 'clasificacion']
             if search_type not in ALLOWED_FIELDS and search_type != 'texto':
                 raise ValueError("Campo de búsqueda no permitido")
+
+            # Construcción de la query
             query = {
                 "query": {
                     "bool": {
@@ -614,24 +630,28 @@ def buscador():
                     }
                 }
             }
-            if search_type == 'texto':
-                query["query"]["bool"]["must"].append({
-                    "match_phrase": {
-                        "texto": {
-                            "query": search_text,
-                            "slop": 1
-                        }
-                    }
-                })
-            else:
-                query["query"]["bool"]["must"].append({
-                    "wildcard": {
-                        search_type: {
-                            "value": f"*{search_text.lower()}*"
-                        }
-                    }
-                })
 
+            # Filtro por texto o campo específico
+            if search_text:
+                if search_type == 'texto':
+                    query["query"]["bool"]["must"].append({
+                        "match_phrase": {
+                            "texto": {
+                                "query": search_text,
+                                "slop": 1
+                            }
+                        }
+                    })
+                else:
+                    query["query"]["bool"]["must"].append({
+                        "wildcard": {
+                            search_type: {
+                                "value": f"*{search_text.lower()}*"
+                            }
+                        }
+                    })
+
+            # Filtro por fecha
             query["query"]["bool"]["must"].append({
                 "range": {
                     "fecha": {
@@ -642,13 +662,17 @@ def buscador():
                 }
             })
 
+            # Ejecutar búsqueda en Elasticsearch
             response = client.search(
                 index=INDEX_NAME,
                 body=query
             )
 
             hits = response['hits']['hits']
-            aggregations = response['aggregations']
+            aggregations = response.get('aggregations', {})
+            mensaje = ""
+            if not hits:
+                mensaje = "No se encontraron resultados para tu búsqueda."
 
             return render_template('buscador.html',
                                    version=VERSION_APP,
@@ -659,7 +683,8 @@ def buscador():
                                    search_text=search_text,
                                    fecha_desde=fecha_desde,
                                    fecha_hasta=fecha_hasta,
-                                   query=query)
+                                   mensaje=mensaje,
+                                   query=query)  # El query se puede ocultar en producción
 
         except Exception as e:
             return render_template('buscador.html',
@@ -667,6 +692,7 @@ def buscador():
                                    creador=CREATOR_APP,
                                    error_message=f'Error en la búsqueda: {str(e)}')
 
+    # GET request (primera carga del buscador)
     return render_template('buscador.html',
                            version=VERSION_APP,
                            creador=CREATOR_APP)
