@@ -582,10 +582,6 @@ def buscador():
             fecha_desde = request.form.get('fecha_desde') or "1500-01-01"
             fecha_hasta = request.form.get('fecha_hasta') or datetime.now().strftime("%Y-%m-%d")
 
-            # Validar formato de fechas
-            if not (validate_date(fecha_desde) and validate_date(fecha_hasta)):
-                raise ValueError("Formato de fecha inválido. Usa yyyy-mm-dd.")
-
             # Lista blanca de campos permitidos
             ALLOWED_FIELDS = ['titulo', 'autor', 'categoria', 'clasificacion']
             if search_type not in ALLOWED_FIELDS and search_type != 'texto':
